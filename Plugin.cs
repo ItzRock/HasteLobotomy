@@ -5,6 +5,7 @@ using Landfall.Modding;
 using System.Reflection;
 using UnityEngine.Localization;
 using System.Collections;
+using Landfall.Haste;
 namespace Lobotomy;
 
 [LandfallPlugin]
@@ -36,7 +37,7 @@ public class Lobotomy {
         }
 
         sfxPrefab = assetBundle.LoadAsset<GameObject>("SFX");
-
+        sfxPrefab.GetComponent<AudioSource>().volume = 0.6f;
         positions = new();
         harmony = new(GUID);
         harmony.PatchAll();
@@ -84,7 +85,7 @@ public class PlayerMovementPatches {
     [HarmonyPostfix]
     private static void StartPostfix(PlayerMovement __instance) {
         Lobotomy.Lobotomizing = false;
-        __instance.badLandingThreshold = 0.85f;
+        if(Lobotomy.Enabled) __instance.badLandingThreshold = 0.85f;
         Lobotomy.player = __instance.gameObject;
     }
     [HarmonyPatch(nameof(PlayerMovement.BadLanding))]
@@ -124,7 +125,7 @@ public class LobotomySetting : OffOnSetting, IExposedSetting {
         return OffOnMode.ON;
     }
 
-    public LocalizedString GetDisplayName() => new("LobotomyAntStai", "settingName");
+    public LocalizedString GetDisplayName() => new UnlocalizedString("Enable Lobotomy Mod?");
 
     // Token: 0x0600062B RID: 1579 RVA: 0x00024CEC File Offset: 0x00022EEC
     public override List<LocalizedString> GetLocalizedChoices() {
