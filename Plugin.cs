@@ -6,6 +6,8 @@ using System.Reflection;
 using UnityEngine.Localization;
 using System.Collections;
 using Landfall.Haste;
+using UnityEngine.Audio;
+using Unity.Mathematics;
 namespace Lobotomy;
 
 [LandfallPlugin]
@@ -14,6 +16,8 @@ public class Lobotomy {
     public static string GUID = "AnthonyStai.Lobotomy";
     public static List<Vector3> positions;
     public static bool Enabled = true;
+    public static bool SoundOnly = false;
+    public static float volume = 0.7f;
     public static GameObject sfxPrefab;
     public static float counter = 0;
     public static GameObject player;
@@ -37,7 +41,7 @@ public class Lobotomy {
         }
 
         sfxPrefab = assetBundle.LoadAsset<GameObject>("SFX");
-        sfxPrefab.GetComponent<AudioSource>().volume = 0.6f;
+        sfxPrefab.GetComponent<AudioSource>().playOnAwake = false;
         positions = new();
         harmony = new(GUID);
         harmony.PatchAll();
@@ -48,30 +52,34 @@ public class Lobotomy {
         if (!Lobotomizing && Enabled) {
             Lobotomizing = true;
             GameObject clone = MonoBehaviour.Instantiate(sfxPrefab);
-            int icePicks = 3;
-            for (int i = 0; i < icePicks; i++) {
-                float time = UnityEngine.Random.Range(.1f, .6f);
-                float timer = 0f;
-                while (timer < time) {
-                    float timeScale = Mathf.Lerp(1f, 20f, timer / time);
-                    Time.timeScale = timeScale;
-                    timer += Time.unscaledDeltaTime;
+            clone.GetComponent<AudioSource>().volume = volume;
+            clone.GetComponent<AudioSource>().Play();
+            if (!SoundOnly) {
+                int icePicks = 3;
+                for (int i = 0; i < icePicks; i++) {
+                    float time = UnityEngine.Random.Range(.1f, .6f);
+                    float timer = 0f;
+                    while (timer < time) {
+                        float timeScale = Mathf.Lerp(1f, 20f, timer / time);
+                        Time.timeScale = timeScale;
+                        timer += Time.unscaledDeltaTime;
+                        yield return null;
+                    }
+                    yield return new WaitForSecondsRealtime(.5f);
+                }
+                Time.timeScale = 0;
+                float timer2 = 0f;
+                float endTime = 0.75f;
+                Vector3 posStart = player.transform.position;
+                Vector3 posEnd = positions[0];
+                while (timer2 < endTime) {
+                    player.transform.position = Vector3.Lerp(posStart, posEnd, timer2 / endTime);
+                    timer2 += Time.unscaledDeltaTime;
                     yield return null;
                 }
-                yield return new WaitForSecondsRealtime(.5f);
+                player.transform.position = posEnd;
+                Time.timeScale = 1;
             }
-            Time.timeScale = 0;
-            float timer2 = 0f;
-            float endTime = 0.75f;
-            Vector3 posStart = player.transform.position;
-            Vector3 posEnd = positions[0];
-            while (timer2 < endTime) {
-                player.transform.position = Vector3.Lerp(posStart, posEnd, timer2 / endTime);
-                timer2 += Time.unscaledDeltaTime;
-                yield return null;
-            }
-            player.transform.position = posEnd;
-            Time.timeScale = 1;
             Lobotomizing = false;
         } else Debug.Log("Already Lobotomizing");
     }
@@ -118,7 +126,7 @@ public class LobotomySetting : OffOnSetting, IExposedSetting {
         Lobotomy.Enabled = base.Value == OffOnMode.ON;
     }
 
-    public string GetCategory() => "Mods";
+    public string GetCategory() => "Lobotomy";
 
     // Token: 0x0600062A RID: 1578 RVA: 0x00024CD8 File Offset: 0x00022ED8
     public override OffOnMode GetDefaultValue() {
@@ -135,4 +143,34 @@ public class LobotomySetting : OffOnSetting, IExposedSetting {
             new LocalizedString("Settings", "EnabledGraphicOption")
         };
     }
+}
+[HasteSetting]
+public class SoundOnlySetting : OffOnSetting, IExposedSetting {
+    public override void ApplyValue() {
+        Lobotomy.SoundOnly = base.Value == OffOnMode.ON;
+    }
+
+    public string GetCategory() => "Lobotomy";
+    public override OffOnMode GetDefaultValue() {
+        return OffOnMode.OFF;
+    }
+    public LocalizedString GetDisplayName() => new UnlocalizedString("Play only the sound?");
+    public override List<LocalizedString> GetLocalizedChoices() {
+        return new List<LocalizedString>
+        {
+            new LocalizedString("Settings", "DisabledGraphicOption"),
+            new LocalizedString("Settings", "EnabledGraphicOption")
+        };
+    }
+}
+
+[HasteSetting]
+public class LobotomyVolume : FloatSetting, IExposedSetting {
+    public override void ApplyValue() {
+        Lobotomy.volume = Mathf.Clamp(base.Value,0,1);
+    }
+    public string GetCategory() => "Lobotomy";
+    public override float GetDefaultValue() => 0.7f;
+    public LocalizedString GetDisplayName() => new UnlocalizedString("Volume between 0-1");
+    public override float2 GetMinMaxValue() => new float2(0, 1);
 }
